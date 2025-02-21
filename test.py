@@ -9,7 +9,7 @@ TEST_DATA_DIR = "test_data"  # Папка с тестовыми данными
 CSV_FILE = os.path.join(TEST_DATA_DIR, "test.csv")  # Путь к CSV
 API_URL = "http://localhost:8000/v1/verifyStudentsData"  # Адрес API
 RESULTS_FILE = "test_results.csv"  # Файл для записи результатов тестов
-AUTH_TOKEN = "05cf7d9e-b8fe"
+AUTH_TOKEN = "16dg8a8s-d4tx"
 
 # === Функция кодирования файла в Base64 ===
 def encode_file_to_base64(file_path):
