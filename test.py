@@ -5,11 +5,11 @@ import requests
 import json
 
 # === Настройки ===
-TEST_DATA_DIR = "test_data"  # Папка с тестовыми данными
+TEST_DATA_DIR = "test_data2"  # Папка с тестовыми данными
 CSV_FILE = os.path.join(TEST_DATA_DIR, "test.csv")  # Путь к CSV
 API_URL = "http://localhost:8000/v1/verifyStudentsData"  # Адрес API
 RESULTS_FILE = "test_results.csv"  # Файл для записи результатов тестов
-AUTH_TOKEN = "16dg8a8s-d4tx"
+AUTH_TOKEN = "05cf7d9e-b8fe"
 
 # === Функция кодирования файла в Base64 ===
 def encode_file_to_base64(file_path):
@@ -97,7 +97,8 @@ with open(CSV_FILE, newline="", encoding="utf-8") as csvfile:
             if status=="success":
                 result = "✅ Passed"
             else:
-                result = "❌ Failed ({raw_resp})"
+                raw_resp = json.dumps(response_json, ensure_ascii=False)
+                result = f"❌ Failed ({raw_resp})"
         except Exception as e:
             result = f"❌ Failed response: {str(e)}"
 
