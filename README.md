@@ -32,7 +32,7 @@ python --version
 т.е. папка с данными пользователей должна находиться рядом с файлом test.py.
 **Очень важно:** для каждого пользователя файлы с паспортом, дипломом и свидетельством о браке должны называться соответвенно p, d, s.
 
-###  Описание CSV-файла test.csv
+###  Описание xlsx-файла test.xslx
 CSV-файл test.csv содержит данные для тестирования API. Он расположен в папке test_data и имеет следующую структуру:
 Каждая строка в файле описывает одного человека, чьи документы будут проверяться сервисом.
 
@@ -77,7 +77,7 @@ from pathlib import Path
 
 # === Настройки теста ===
 TEST_DATA_DIR = "test_data"  # Папка с тестовыми данными
-CSV_FILE = os.path.join(TEST_DATA_DIR, "test.csv")  # Путь к CSV-файлу
+CSV_FILE = os.path.join(TEST_DATA_DIR, "test.xslx")  # Путь к CSV-файлу
 API_URL = "http://localhost:8000/v1/verifyStudentsData"  # Адрес API сервиса
 RESULTS_FILE = "test_results.csv"  # Файл для записи результатов тестов
 AUTH_TOKEN = "02cf6d4e-b8fa"  # Токен авторизации 
