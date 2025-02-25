@@ -62,18 +62,13 @@ lastName;firstName;surName;gender;birthDate;diplomaCountry;educationLevel;diplom
 Чтобы ее установить, выполните в командной строке:
 ```commandline
 pip install requests
+pip install openpyxl
 ```
 
 ### Настройка теста
 Все параметры тестирования задаются непосредственно в Python-файле (test.py).
 Перед запуском убедитесь, что настроены следующие параметры:
 ```python
-import os
-import csv
-import base64
-import requests
-import json
-from pathlib import Path
 
 # === Настройки теста ===
 TEST_DATA_DIR = "test_data"  # Папка с тестовыми данными
