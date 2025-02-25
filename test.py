@@ -1,14 +1,15 @@
 import os
-import csv
 import base64
 import requests
 import json
+import openpyxl
+import datetime
 
 # === Настройки ===
-TEST_DATA_DIR = "test_data2"  # Папка с тестовыми данными
-CSV_FILE = os.path.join(TEST_DATA_DIR, "test.csv")  # Путь к CSV
-API_URL = "http://localhost:8000/v1/verifyStudentsData"  # Адрес API
-RESULTS_FILE = "test_results.csv"  # Файл для записи результатов тестов
+TEST_DATA_DIR = "test_data2"
+EXCEL_FILE = os.path.join(TEST_DATA_DIR, "test.xlsx")
+API_URL = "http://localhost:8000/v1/verifyStudentsData"
+RESULTS_FILE = "test_results.xlsx"
 AUTH_TOKEN = "05cf7d9e-b8fe"
 
 # === Функция кодирования файла в Base64 ===
@@ -28,90 +29,110 @@ def get_mime_type(filename):
     ext = filename.split(".")[-1].lower()
     return MIME_TYPES.get(ext, "application/octet-stream")
 
-# === Чтение CSV ===
-with open(CSV_FILE, newline="", encoding="utf-8") as csvfile:
-    reader = csv.DictReader(csvfile, delimiter=";")
-    test_results = []
+# === Чтение Excel (XLSX) ===
+wb = openpyxl.load_workbook(EXCEL_FILE)
+ws = wb.active  # Берем первый лист
 
-    for row in reader:
-        last_name = row["lastName"]
-        first_name = row["firstName"]
-        sur_name = row["surName"]
-        gender = row["gender"]
-        birth_date = row["birthDate"]
-        diploma_country = row["diplomaCountry"]
-        education_level = row["educationLevel"]
-        diploma_last_name = row.get("diplomaLastName", "")
+test_results = []
 
-        # Определяем путь к папке владельца
-        user_folder = os.path.join(TEST_DATA_DIR, f"{last_name} {first_name} {sur_name}")
+# Читаем заголовки (проверка регистрозависимости)
+ex_headers = [str(cell.value).strip().lower() for cell in ws[1] if cell.value is not None]
+print("Заголовки колонок в файле:", ex_headers)
 
-        # Проверяем наличие папки
-        if not os.path.isdir(user_folder):
-            print(f"⚠️ Папка {user_folder} не найдена. Пропускаем.")
-            continue
+for row in ws.iter_rows(min_row=2, values_only=True):
+    # Пропускаем пустые строки
+    if not any(row):
+        continue  
 
-        # Ищем файлы паспорта, диплома и свидетельства о браке
-        user_files = {}
-        for file_type, file_prefix in {"passport": "p", "diploma": "d", "marriageCertificate": "s"}.items():
-            for ext in MIME_TYPES.keys():
-                file_path = os.path.join(user_folder, f"{file_prefix}.{ext}")
-                if os.path.exists(file_path):
-                    user_files[file_type] = {
-                        "fileName": os.path.basename(file_path),
-                        "mimeType": get_mime_type(file_path),
-                        "data": encode_file_to_base64(file_path)
-                    }
-                    break  # Нашли файл, больше не ищем
-            else:
-                if file_type != "marriageCertificate":  # Свидетельство о браке не обязательно
-                    print(f"⚠️ Файл {file_prefix} не найден в {user_folder}. Пропускаем.")
-                    continue
+    if len(row) < len(ex_headers):
+        print(f"⚠️ Пропущены данные в строке {row}. Пропускаем.")
+        continue
 
-        # Формируем JSON-запрос
-        payload = {
-            "userInfo": {
-                "firstName": first_name,
-                "surName": sur_name,
-                "lastName": last_name,
-                "gender": gender,
-                "birthDate": birth_date,
-                "diplomaCountry": diploma_country,
-                "educationLevel": education_level,
-                "diplomaLastName": diploma_last_name
-            },
-            "userFiles": user_files
-        }
+    row_data = {ex_headers[i]: row[i] for i in range(len(ex_headers))}
 
-        # Заголовки запроса с авторизацией
-        headers = {
-            "Authorization": f"Bearer {AUTH_TOKEN}",
-            "Content-Type": "application/json"
-        }
+    last_name = row_data["lastname"]
+    first_name = row_data["firstname"]
+    sur_name = row_data["surname"]
+    gender = row_data["gender"]
 
-        # Отправка запроса
-        try:
-            response = requests.post(API_URL, json=payload, timeout=30, headers=headers)
-            response_json = response.json()
-            status = response_json.get("status", "error")
-            if status=="success":
-                result = "✅ Passed"
-            else:
-                raw_resp = json.dumps(response_json, ensure_ascii=False)
-                result = f"❌ Failed ({raw_resp})"
-        except Exception as e:
-            result = f"❌ Failed response: {str(e)}"
+    birth_date = row_data["birthdate"]
+    if isinstance(birth_date, (datetime.datetime, datetime.date)):  
+        birth_date = birth_date.strftime("%Y-%m-%d")
 
-        # Логирование результата
-        print(f"🔹 {last_name} {first_name} {sur_name}: {result}")
+    diploma_country = row_data["diplomacountry"]
+    education_level = row_data["educationlevel"]
+    diploma_last_name = row_data.get("diplomalastname", "")
 
-        # Сохранение результата
-        test_results.append([last_name, first_name, sur_name, result])
+    user_folder = os.path.join(TEST_DATA_DIR, f"{last_name} {first_name} {sur_name}")
 
-# === Запись результатов в CSV ===
-with open(RESULTS_FILE, "w", newline="", encoding="utf-8") as f:
-    writer = csv.writer(f)
-    writer.writerow(["Фамилия", "Имя", "Отчество", "Результат"])
-    writer.writerows(test_results)
+    if not os.path.isdir(user_folder):
+        print(f"⚠️ Папка {user_folder} не найдена. Пропускаем.")
+        continue
 
+    # Ищем файлы паспорта, диплома и свидетельства о браке
+    user_files = {}
+    for file_type, file_prefix in {"passport": "p", "diploma": "d", "marriageCertificate": "s"}.items():
+        for ext in MIME_TYPES.keys():
+            file_path = os.path.join(user_folder, f"{file_prefix}.{ext}")
+            if os.path.exists(file_path):
+                user_files[file_type] = {
+                    "fileName": os.path.basename(file_path),
+                    "mimeType": get_mime_type(file_path),
+                    "data": encode_file_to_base64(file_path)
+                }
+                break
+        else:
+            if file_type != "marriageCertificate":  # Свидетельство о браке не обязательно
+                print(f"⚠️ Файл {file_prefix} не найден в {user_folder}. Пропускаем.")
+                continue
+
+    # Формируем JSON-запрос
+    payload = {
+        "userInfo": {
+            "firstName": first_name,
+            "surName": sur_name,
+            "lastName": last_name,
+            "gender": gender,
+            "birthDate": birth_date,
+            "diplomaCountry": diploma_country,
+            "educationLevel": education_level,
+            "diplomaLastName": diploma_last_name
+        },
+        "userFiles": user_files
+    }
+
+    # Заголовки запроса с авторизацией
+    headers = {
+        "Authorization": f"Bearer {AUTH_TOKEN}",
+        "Content-Type": "application/json"
+    }
+
+    # Отправка запроса
+    try:
+        response = requests.post(API_URL, json=payload, timeout=30, headers=headers)
+        response_json = response.json()
+        status = response_json.get("status", "error")
+        if status == "success":
+            result = "✅ Passed"
+        else:
+            raw_resp = json.dumps(response_json, ensure_ascii=False)
+            result = f"❌ Failed ({raw_resp})"
+    except Exception as e:
+        result = f"❌ Failed response: {str(e)}"
+
+    # Логирование результата
+    print(f"🔹 {last_name} {first_name} {sur_name}: {result}")
+
+    # Сохранение результата
+    test_results.append([last_name, first_name, sur_name, result])
+
+# === Запись результатов в Excel (XLSX) ===
+wb_results = openpyxl.Workbook()
+ws_results = wb_results.active
+ws_results.append(["Фамилия", "Имя", "Отчество", "Результат"])  # Заголовки
+
+for row in test_results:
+    ws_results.append(row)
+
+wb_results.save(RESULTS_FILE)
 print("\n📜 Тестирование завершено! Результаты сохранены в", RESULTS_FILE)
